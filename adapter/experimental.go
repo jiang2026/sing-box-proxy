@@ -35,6 +35,8 @@ type URLTestHistoryStorage interface {
 type V2RayServer interface {
 	LifecycleService
 	StatsService() ConnectionTracker
+	AddInbound(tag string)
+	DelInbound(tag string)
 }
 
 type CacheFile interface {

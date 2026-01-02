@@ -44,6 +44,25 @@ func NewServer(logger log.Logger, options option.V2RayAPIOptions) (adapter.V2Ray
 	return server, nil
 }
 
+// AddInbound 添加入站器启用流量统计
+func (s *Server) AddInbound(tag string) {
+	s.statsService.access.Lock()
+	defer s.statsService.access.Unlock()
+	s.statsService.inbounds[tag] = true
+}
+
+// DelInbound 删除入站器启用流量统计
+func (s *Server) DelInbound(tag string) {
+	s.statsService.access.Lock()
+	defer s.statsService.access.Unlock()
+
+	// 删除入站器标签
+	delete(s.statsService.inbounds, tag)
+
+	// 清理对应的计数器
+	delete(s.statsService.counters, "inbound>>>"+tag+">>>traffic>>>uplink")
+	delete(s.statsService.counters, "inbound>>>"+tag+">>>traffic>>>downlink")
+}
 func (s *Server) Name() string {
 	return "v2ray server"
 }
