@@ -3,6 +3,7 @@ package dialer
 import (
 	"context"
 	"net"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common/bufio"
+	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -133,6 +135,28 @@ func (d *resolveDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 
 func (d *resolveDialer) QueryOptions() adapter.DNSQueryOptions {
 	return d.queryOptions
+}
+
+// WireGuardListenerWithBind 委托给底层 dialer，使 ResolveDialer 包装后仍能传递 bind 地址
+func (d *resolveDialer) WireGuardControl() control.Func {
+	if wg, ok := d.dialer.(WireGuardListener); ok {
+		return wg.WireGuardControl()
+	}
+	return nil
+}
+
+func (d *resolveDialer) WireGuardBindAddress4() (netip.Addr, bool) {
+	if wg, ok := d.dialer.(WireGuardListenerWithBind); ok {
+		return wg.WireGuardBindAddress4()
+	}
+	return netip.Addr{}, false
+}
+
+func (d *resolveDialer) WireGuardBindAddress6() (netip.Addr, bool) {
+	if wg, ok := d.dialer.(WireGuardListenerWithBind); ok {
+		return wg.WireGuardBindAddress6()
+	}
+	return netip.Addr{}, false
 }
 
 func (d *resolveDialer) Upstream() any {

@@ -24,8 +24,9 @@ import (
 )
 
 var (
-	_ ParallelInterfaceDialer = (*DefaultDialer)(nil)
-	_ WireGuardListener       = (*DefaultDialer)(nil)
+	_ ParallelInterfaceDialer   = (*DefaultDialer)(nil)
+	_ WireGuardListener         = (*DefaultDialer)(nil)
+	_ WireGuardListenerWithBind = (*DefaultDialer)(nil)
 )
 
 type DefaultDialer struct {
@@ -36,6 +37,8 @@ type DefaultDialer struct {
 	udpListener            net.ListenConfig
 	udpAddr4               string
 	udpAddr6               string
+	wireguardBindAddr4     netip.Addr // WireGuard 监听绑定 IPv4（inet4_bind_address）
+	wireguardBindAddr6     netip.Addr // WireGuard 监听绑定 IPv6（inet6_bind_address）
 	netns                  string
 	networkManager         adapter.NetworkManager
 	networkStrategy        *C.NetworkStrategy
@@ -165,26 +168,30 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 		listener.Control = control.Append(listener.Control, control.DisableUDPFragment())
 	}
 	var (
-		dialer4    = dialer
-		udpDialer4 = dialer
-		udpAddr4   string
+		dialer4            = dialer
+		udpDialer4         = dialer
+		udpAddr4           string
+		wireguardBindAddr4 netip.Addr
 	)
 	if options.Inet4BindAddress != nil {
 		bindAddr := options.Inet4BindAddress.Build(netip.IPv4Unspecified())
 		dialer4.LocalAddr = &net.TCPAddr{IP: bindAddr.AsSlice()}
 		udpDialer4.LocalAddr = &net.UDPAddr{IP: bindAddr.AsSlice()}
 		udpAddr4 = M.SocksaddrFrom(bindAddr, 0).String()
+		wireguardBindAddr4 = bindAddr
 	}
 	var (
-		dialer6    = dialer
-		udpDialer6 = dialer
-		udpAddr6   string
+		dialer6            = dialer
+		udpDialer6         = dialer
+		udpAddr6           string
+		wireguardBindAddr6 netip.Addr
 	)
 	if options.Inet6BindAddress != nil {
 		bindAddr := options.Inet6BindAddress.Build(netip.IPv6Unspecified())
 		dialer6.LocalAddr = &net.TCPAddr{IP: bindAddr.AsSlice()}
 		udpDialer6.LocalAddr = &net.UDPAddr{IP: bindAddr.AsSlice()}
 		udpAddr6 = M.SocksaddrFrom(bindAddr, 0).String()
+		wireguardBindAddr6 = bindAddr
 	}
 	if options.TCPMultiPath {
 		dialer4.SetMultipathTCP(true)
@@ -199,6 +206,8 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 		udpListener:            listener,
 		udpAddr4:               udpAddr4,
 		udpAddr6:               udpAddr6,
+		wireguardBindAddr4:     wireguardBindAddr4,
+		wireguardBindAddr6:     wireguardBindAddr6,
 		netns:                  options.NetNs,
 		networkManager:         networkManager,
 		networkStrategy:        networkStrategy,
@@ -359,6 +368,14 @@ func (d *DefaultDialer) ListenSerialInterfacePacket(ctx context.Context, destina
 
 func (d *DefaultDialer) WireGuardControl() control.Func {
 	return d.udpListener.Control
+}
+
+func (d *DefaultDialer) WireGuardBindAddress4() (netip.Addr, bool) {
+	return d.wireguardBindAddr4, d.wireguardBindAddr4.IsValid()
+}
+
+func (d *DefaultDialer) WireGuardBindAddress6() (netip.Addr, bool) {
+	return d.wireguardBindAddr6, d.wireguardBindAddr6.IsValid()
 }
 
 func trackConn(conn net.Conn, err error) (net.Conn, error) {
