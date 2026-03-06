@@ -162,7 +162,7 @@ func (c *ClientBind) SetMark(mark uint32) error {
 	return nil
 }
 
-func (c *ClientBind) Send(bufs [][]byte, ep conn.Endpoint, offset int) error {
+func (c *ClientBind) Send(bufs [][]byte, ep conn.Endpoint) error {
 	udpConn, err := c.connect()
 	if err != nil {
 		c.pauseManager.WaitActive()
@@ -171,9 +171,6 @@ func (c *ClientBind) Send(bufs [][]byte, ep conn.Endpoint, offset int) error {
 	}
 	destination := netip.AddrPort(ep.(remoteEndpoint))
 	for _, buf := range bufs {
-		if offset > 0 {
-			buf = buf[offset:]
-		}
 		if len(buf) > 3 {
 			reserved, loaded := c.reservedForEndpoint[destination]
 			if !loaded {

@@ -15,7 +15,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -180,9 +180,13 @@ func (e *Endpoint) Start(resolve bool) error {
 		bind = NewClientBind(e.options.Context, e.options.Logger, e.options.Dialer, isConnect, connectAddr, reserved)
 	}
 	if isWgListener || len(e.peers) > 1 {
-		for _, peer := range e.peers {
-			if peer.reserved != [3]uint8{} {
-				bind.SetReservedForEndpoint(peer.endpoint, peer.reserved)
+		if bindWithReserved, ok := bind.(interface {
+			SetReservedForEndpoint(netip.AddrPort, [3]byte)
+		}); ok {
+			for _, peer := range e.peers {
+				if peer.reserved != [3]uint8{} {
+					bindWithReserved.SetReservedForEndpoint(peer.endpoint, peer.reserved)
+				}
 			}
 		}
 	}
